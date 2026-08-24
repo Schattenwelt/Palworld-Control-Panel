@@ -59,6 +59,13 @@ TRANSLATIONS = {
               "Then restart the server once."},
     "nobody_online": {"de": "Niemand online.", "en": "Nobody online."},
     "rcon_unreachable": {"de": "RCON nicht erreichbar", "en": "RCON not reachable"},
+    "kick": {"de": "Kicken", "en": "Kick"},
+    "ban": {"de": "Bannen", "en": "Ban"},
+    "confirm_kick": {"de": "Spieler {name} kicken?", "en": "Kick player {name}?"},
+    "confirm_ban": {"de": "Spieler {name} bannen?", "en": "Ban player {name}?"},
+    "player_kicked": {"de": "Spieler gekickt.", "en": "Player kicked."},
+    "player_banned": {"de": "Spieler gebannt.", "en": "Player banned."},
+    "no_steamid": {"de": "Keine SteamID angegeben.", "en": "No SteamID provided."},
 
     # -- Konfiguration --
     "cfg_notice": {

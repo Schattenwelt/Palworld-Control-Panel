@@ -107,6 +107,12 @@ class PalworldRCON:
     def broadcast(self, message):
         return self.command("Broadcast " + message)
 
+    def kick(self, steamid):
+        return self.command("KickPlayer " + str(steamid))
+
+    def ban(self, steamid):
+        return self.command("BanPlayer " + str(steamid))
+
     def shutdown(self, seconds=15, message="Server_wird_gestoppt"):
         # Palworld: Shutdown <sekunden> <nachricht ohne Leerzeichen>
         return self.command(f"Shutdown {int(seconds)} {message}")

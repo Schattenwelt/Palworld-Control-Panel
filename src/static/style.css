@@ -231,9 +231,13 @@ input:focus, textarea:focus {
 .players { list-style: none; margin: 0 0 14px; padding: 0; }
 .players li {
   display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap;
   padding: 8px 12px; border: 1px solid var(--line-soft); border-radius: 8px;
   background: var(--bg); margin-bottom: 6px; font-size: .9rem;
 }
+.player-info { display: flex; align-items: center; gap: 10px; min-width: 0; flex-wrap: wrap; }
+.player-actions { display: flex; gap: 6px; }
+.btn.tiny { padding: 4px 10px; font-size: .78rem; }
 .players .pname { font-weight: 600; }
 .players .sid { font-size: .74rem; }
 .rcon-controls {

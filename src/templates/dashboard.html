@@ -110,6 +110,47 @@ async function poll() {
 const playersEl = document.getElementById('players');
 const countEl = document.getElementById('player-count');
 const rconNote = document.getElementById('rcon-note');
+const CSRF = {{ csrf_token()|tojson }};
+const T = {
+  kick: {{ t('kick')|tojson }},
+  ban: {{ t('ban')|tojson }},
+  confirmKick: {{ t('confirm_kick')|tojson }},
+  confirmBan: {{ t('confirm_ban')|tojson }}
+};
+
+async function playerAction(steamid, act, name) {
+  const q = (act === 'ban' ? T.confirmBan : T.confirmKick).replace('{name}', name || '');
+  if (!confirm(q)) return;
+  try {
+    const body = new URLSearchParams({ csrf: CSRF, act: act, steamid: steamid });
+    const d = await (await fetch("{{ url_for('rcon_player') }}", { method: 'POST', body })).json();
+    rconNote.textContent = d.msg || '';
+    setTimeout(() => { rconNote.textContent = ''; }, 5000);
+  } catch (e) { /* ignore */ }
+  pollPlayers();
+}
+
+function renderPlayers(list) {
+  playersEl.innerHTML = '';
+  list.forEach(p => {
+    const li = document.createElement('li');
+    const info = document.createElement('div'); info.className = 'player-info';
+    const nm = document.createElement('span'); nm.className = 'pname'; nm.textContent = p.name || '(?)';
+    const sid = document.createElement('span'); sid.className = 'muted mono sid'; sid.textContent = p.steamid || '';
+    info.append(nm, sid);
+    li.append(info);
+    if (p.steamid) {
+      const acts = document.createElement('div'); acts.className = 'player-actions';
+      const kb = document.createElement('button'); kb.className = 'btn tiny'; kb.textContent = T.kick;
+      kb.onclick = () => playerAction(p.steamid, 'kick', p.name);
+      const bb = document.createElement('button'); bb.className = 'btn tiny danger'; bb.textContent = T.ban;
+      bb.onclick = () => playerAction(p.steamid, 'ban', p.name);
+      acts.append(kb, bb);
+      li.append(acts);
+    }
+    playersEl.append(li);
+  });
+}
 
 async function pollPlayers() {
   try {
@@ -118,23 +159,17 @@ async function pollPlayers() {
       countEl.textContent = '–';
       rconNote.textContent = d.note || '';
       playersEl.innerHTML = '<li class="muted"></li>';
-      playersEl.querySelector('li').textContent = d.note || '{{ t('rcon_unreachable') }}';
+      playersEl.querySelector('li').textContent = d.note || {{ t('rcon_unreachable')|tojson }};
       return;
     }
     rconNote.textContent = '';
     countEl.textContent = d.players.length;
     if (!d.players.length) {
       playersEl.innerHTML = '<li class="muted"></li>';
-      playersEl.querySelector('li').textContent = '{{ t('nobody_online') }}';
+      playersEl.querySelector('li').textContent = {{ t('nobody_online')|tojson }};
       return;
     }
-    playersEl.innerHTML = d.players.map(p =>
-      '<li><span class="pname"></span><span class="muted mono sid"></span></li>').join('');
-    const items = playersEl.querySelectorAll('li');
-    d.players.forEach((p, i) => {
-      items[i].querySelector('.pname').textContent = p.name || '(?)';
-      items[i].querySelector('.sid').textContent = p.steamid || '';
-    });
+    renderPlayers(d.players);
   } catch (e) { /* kurz kein Netz */ }
 }
 

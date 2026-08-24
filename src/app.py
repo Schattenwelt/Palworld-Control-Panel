@@ -537,6 +537,28 @@ def rcon_action():
     return redirect(url_for("dashboard"))
 
 
+@app.route("/rcon/player", methods=["POST"])
+@login_required
+def rcon_player():
+    if not check_csrf():
+        return jsonify(ok=False, msg=t("csrf_invalid"))
+    act = request.form.get("act")
+    steamid = (request.form.get("steamid") or "").strip()
+    if not steamid:
+        return jsonify(ok=False, msg=t("no_steamid"))
+    if act not in ("kick", "ban"):
+        return jsonify(ok=False, msg=t("unknown_rcon"))
+    try:
+        with rcon_connect() as r:
+            if act == "kick":
+                r.kick(steamid)
+                return jsonify(ok=True, msg=t("player_kicked"))
+            r.ban(steamid)
+            return jsonify(ok=True, msg=t("player_banned"))
+    except (RCONError, OSError) as e:
+        return jsonify(ok=False, msg=t("rcon_failed", err=str(e)))
+
+
 @app.route("/rcon/setup", methods=["POST"])
 @login_required
 def rcon_setup():

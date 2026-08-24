@@ -18,7 +18,7 @@ The interface is available in **German and English** (switchable in the top bar)
 - **Config editor** for `PalWorldSettings.ini` — structured fields *and* a raw editor,
   robust against Palworld's single-line/reset quirks
 - **RCON, server-internal**: enabled automatically (localhost only, no exposed port) —
-  live player list, save, "save & stop", and broadcasts
+  live player list with per-player **kick / ban**, save, "save & stop", and broadcasts
 - **Multiple user accounts**: add / reset / delete users in the UI; each user can change
   their own password. All accounts are equal.
 - Runs as a non-root system user with a narrow `sudo` allow-list
