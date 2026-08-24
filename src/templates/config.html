@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_config') }} · Palworld Panel{% endblock %}
+{% block content %}
+
+{% if using_default %}
+<div class="notice">{{ t('cfg_notice', path=ini_path) }}</div>
+{% endif %}
+
+<div class="tabs">
+  <button class="tab on" data-tab="form">{{ t('tab_settings') }}</button>
+  <button class="tab" data-tab="raw">{{ t('tab_raw') }}</button>
+</div>
+
+<section class="panel tabview" data-view="form">
+  <form method="post" action="{{ url_for('config_save') }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <div class="grid">
+      {% for k, v, q, p in settings %}
+      <label class="field">
+        <span class="fname mono">{{ k }}</span>
+        <input name="opt_{{ k }}" value="{{ v }}" spellcheck="false"
+               {% if q %}data-q="1"{% endif %}>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="actions">
+      <button class="btn primary" type="submit">{{ t('save') }}</button>
+      <span class="muted">{{ t('cfg_save_hint') }}</span>
+    </div>
+  </form>
+</section>
+
+<section class="panel tabview" data-view="raw" hidden>
+  <form method="post" action="{{ url_for('config_save_raw') }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <textarea name="raw" class="raw-edit" spellcheck="false">{{ raw }}</textarea>
+    <div class="actions">
+      <button class="btn primary" type="submit">{{ t('cfg_save_raw_btn') }}</button>
+      <span class="muted">{{ t('cfg_raw_warn') }}</span>
+    </div>
+  </form>
+</section>
+
+<script>
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+  t.classList.add('on');
+  document.querySelectorAll('.tabview').forEach(v =>
+    v.hidden = v.dataset.view !== t.dataset.tab);
+}));
+</script>
+{% endblock %}
