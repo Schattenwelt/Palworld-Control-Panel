@@ -19,6 +19,8 @@ The interface is available in **German and English** (switchable in the top bar)
   robust against Palworld's single-line/reset quirks
 - **RCON, server-internal**: enabled automatically (localhost only, no exposed port) —
   live player list with per-player **kick / ban**, save, "save & stop", and broadcasts
+- **Connect box**: shows the server address (auto-detected public IP, cached; falls back
+  to the local IP), with a copy button — uses Palworld's own `PublicIP`/`PublicPort` when set
 - **Multiple user accounts**: add / reset / delete users in the UI; each user can change
   their own password. All accounts are equal.
 - Runs as a non-root system user with a narrow `sudo` allow-list

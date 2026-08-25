@@ -27,6 +27,21 @@ TRANSLATIONS = {
     "server_status": {"de": "Serverstatus", "en": "Server status"},
     "boot_on": {"de": "↻ startet nach einem Reboot automatisch",
                 "en": "↻ starts automatically after a reboot"},
+    "connect_title": {"de": "Verbinden", "en": "Connect"},
+    "connect_label": {"de": "Serveradresse", "en": "Server address"},
+    "connect_hint": {"de": "Direkt per IP verbinden oder zur Community-Serverliste hinzufügen",
+                     "en": "Join directly by IP or add to the community server list"},
+    "connect_copy": {"de": "Kopieren", "en": "Copy"},
+    "connect_kind_auto": {"de": "öffentliche IP · automatisch", "en": "public IP · auto-detected"},
+    "connect_kind_manual": {"de": "öffentliche Adresse (PublicIP)", "en": "public address (PublicIP)"},
+    "connect_kind_local": {"de": "lokale Adresse", "en": "local address"},
+    "connect_local_note": {
+        "de": "Öffentliche IP nicht ermittelbar (kein Internet-Egress?) – lokale Adresse "
+              "angezeigt. Bei Bedarf PublicIP in der Konfiguration setzen und den Port "
+              "8211/UDP in OPNsense weiterleiten.",
+        "en": "Public IP could not be detected (no internet egress?) – showing the local "
+              "address. If needed, set PublicIP in the configuration and forward port "
+              "8211/UDP in your firewall."},
     "boot_off": {"de": "○ bleibt nach einem Reboot aus",
                  "en": "○ stays off after a reboot"},
     "btn_start": {"de": "Starten", "en": "Start"},

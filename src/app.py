@@ -8,8 +8,11 @@ import json
 import os
 import re
 import secrets
+import socket
 import subprocess
 import threading
+import time
+import urllib.request
 from functools import wraps
 
 from flask import (Flask, Response, redirect, render_template, request,
@@ -159,6 +162,69 @@ def recent_logs(name, lines=60):
     rc, out = run(["journalctl", "-u", name, "-n", str(lines),
                    "--no-pager", "-o", "short-iso"])
     return out if rc == 0 else "Keine Logs verfügbar (Rechte prüfen)."
+
+
+# ---------------------------------------------------------------------------
+# Server-Adresse (öffentliche IP ermitteln, gecacht)
+# ---------------------------------------------------------------------------
+def local_ipv4():
+    """Lokale IPv4 des Containers (ohne echten Traffic zu erzeugen)."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        return s.getsockname()[0]
+    except Exception:
+        return "127.0.0.1"
+    finally:
+        s.close()
+
+
+_PUBIP_SERVICES = [
+    "https://api.ipify.org",
+    "https://checkip.amazonaws.com",
+    "https://ifconfig.me/ip",
+]
+_PUBIP_TTL = 600        # gültige IP 10 Minuten cachen
+_PUBIP_FAIL_TTL = 120   # Fehlschlag 2 Minuten cachen
+_IPV4_RE = re.compile(r"^\d{1,3}(?:\.\d{1,3}){3}$")
+_pubip_cache = {"ip": None, "ts": 0.0, "ok": False}
+
+
+def detect_public_ip(timeout=2.0):
+    """Öffentliche IPv4 ermitteln (gecacht). Gibt die IP oder None zurück.
+    Auch Fehlschläge werden kurz gecacht, damit das Dashboard ohne Internet-Egress
+    nicht bei jedem Aufruf blockiert."""
+    now = time.time()
+    ttl = _PUBIP_TTL if _pubip_cache["ok"] else _PUBIP_FAIL_TTL
+    if now - _pubip_cache["ts"] < ttl:
+        return _pubip_cache["ip"]
+    ip = None
+    for url in _PUBIP_SERVICES:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "palworld-panel"})
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                candidate = resp.read().decode("utf-8", "ignore").strip()
+            if _IPV4_RE.match(candidate):
+                ip = candidate
+                break
+        except Exception:
+            continue
+    _pubip_cache.update(ip=ip, ts=now, ok=bool(ip))
+    return ip
+
+
+def connect_info():
+    """Liefert (adresse, port, art) für die Verbinden-Box.
+    Priorität: PublicIP aus der INI (manuell) -> automatische öffentliche IP -> lokal."""
+    opts = ini_lookup()
+    port = (opts.get("PublicPort") or "8211").strip() or "8211"
+    manual = (opts.get("PublicIP") or "").strip()
+    if manual:
+        return manual, port, "manual"
+    pub = detect_public_ip()
+    if pub:
+        return pub, port, "auto"
+    return local_ipv4(), port, "local"
 
 
 # ---------------------------------------------------------------------------
@@ -395,6 +461,7 @@ def logout():
 def dashboard():
     state = service_active(SERVICE)
     update_state = service_active(UPDATE_SERVICE)
+    c_ip, c_port, c_kind = connect_info()
     return render_template(
         "dashboard.html",
         state=state,
@@ -403,6 +470,9 @@ def dashboard():
         rcon_enabled=rcon_config()[0],
         logs=recent_logs(SERVICE),
         service=SERVICE,
+        connect_ip=c_ip,
+        connect_port=c_port,
+        connect_kind=c_kind,
     )
 
 

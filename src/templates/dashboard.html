@@ -27,6 +27,37 @@
 
 <section class="panel">
   <div class="panel-head">
+    <h2>{{ t('connect_title') }}</h2>
+    {% if connect_kind == 'auto' %}<span class="addr-kind auto">{{ t('connect_kind_auto') }}</span>
+    {% elif connect_kind == 'manual' %}<span class="addr-kind">{{ t('connect_kind_manual') }}</span>
+    {% else %}<span class="addr-kind local">{{ t('connect_kind_local') }}</span>{% endif %}
+  </div>
+  <div class="connect-row">
+    <div class="connect-meta">
+      <span class="connect-label">{{ t('connect_label') }}</span>
+      <span class="muted small">{{ t('connect_hint') }}</span>
+    </div>
+    <code class="connect-addr" id="addr-server">{{ connect_ip }}:{{ connect_port }}</code>
+    <button class="btn tiny" type="button" onclick="copyAddr('addr-server', this)">{{ t('connect_copy') }}</button>
+  </div>
+  {% if connect_kind == 'local' %}
+  <p class="hint-line muted small">{{ t('connect_local_note') }}</p>
+  {% endif %}
+</section>
+
+<script>
+function copyAddr(id, btn) {
+  var el = document.getElementById(id);
+  navigator.clipboard.writeText(el.textContent).then(function () {
+    var old = btn.textContent;
+    btn.textContent = "\u2713";
+    setTimeout(function () { btn.textContent = old; }, 1200);
+  });
+}
+</script>
+
+<section class="panel">
+  <div class="panel-head">
     <h2>{{ t('players_online') }} <span class="pill" id="player-count">–</span></h2>
     <span class="muted mono" id="rcon-note"></span>
   </div>
