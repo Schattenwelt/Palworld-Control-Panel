@@ -81,6 +81,31 @@ TRANSLATIONS = {
     "player_kicked": {"de": "Spieler gekickt.", "en": "Player kicked."},
     "player_banned": {"de": "Spieler gebannt.", "en": "Player banned."},
     "no_steamid": {"de": "Keine SteamID angegeben.", "en": "No SteamID provided."},
+    # -- Ressourcen --
+    "resources": {"de": "Ressourcen", "en": "Resources"},
+    "res_disk": {"de": "Disk", "en": "Disk"},
+    # -- Version / Update --
+    "version_installed": {"de": "Installiert", "en": "Installed"},
+    "update_check_btn": {"de": "Nach Update suchen", "en": "Check for update"},
+    "update_checking": {"de": "Prüfe …", "en": "Checking …"},
+    "update_current": {"de": "✓ aktuell", "en": "✓ up to date"},
+    "update_available": {"de": "⬆ Update verfügbar", "en": "⬆ Update available"},
+    "update_unknown": {"de": "Status unbekannt", "en": "Status unknown"},
+    # -- Bannliste --
+    "bans_title": {"de": "Bannliste", "en": "Ban list"},
+    "bans_none": {"de": "Keine Bans.", "en": "No bans."},
+    "unban_btn": {"de": "Entbannen", "en": "Unban"},
+    "confirm_unban": {"de": "{id} entbannen?", "en": "Unban {id}?"},
+    "unban_done": {"de": "Entbannt.", "en": "Unbanned."},
+    "unban_file_only": {
+        "de": "Aus der Bannliste entfernt – greift nach einem Server-Neustart "
+              "(RCON war nicht erreichbar).",
+        "en": "Removed from the ban list – takes effect after a server restart "
+              "(RCON was unreachable)."},
+    "unban_failed": {"de": "Entbannen fehlgeschlagen.", "en": "Unban failed."},
+    "bans_hint": {
+        "de": "Palworld kann Bans nicht per RCON auflisten – die Liste kommt aus banlist.txt.",
+        "en": "Palworld cannot list bans via RCON – the list comes from banlist.txt."},
 
     # -- Konfiguration --
     "cfg_notice": {

@@ -58,6 +58,33 @@ function copyAddr(id, btn) {
 
 <section class="panel">
   <div class="panel-head">
+    <h2>{{ t('resources') }}</h2>
+    <span class="muted small" id="ver-status">
+      {% if version %}{{ t('version_installed') }}: <span class="mono">{{ version }}</span>{% if build %} · <span class="mono">{{ build }}</span>{% endif %}{% endif %}
+    </span>
+  </div>
+  <div class="res-grid">
+    <div class="res-cell">
+      <div class="res-top"><span class="res-label">CPU</span><span class="res-val mono" id="res-cpu">–</span></div>
+      <div class="res-bar"><div class="res-fill" id="bar-cpu"></div></div>
+    </div>
+    <div class="res-cell">
+      <div class="res-top"><span class="res-label">RAM</span><span class="res-val mono" id="res-ram">–</span></div>
+      <div class="res-bar"><div class="res-fill" id="bar-ram"></div></div>
+    </div>
+    <div class="res-cell">
+      <div class="res-top"><span class="res-label">{{ t('res_disk') }}</span><span class="res-val mono" id="res-disk">–</span></div>
+      <div class="res-bar"><div class="res-fill" id="bar-disk"></div></div>
+    </div>
+  </div>
+  <div class="ver-row">
+    <button class="btn tiny" type="button" onclick="checkUpdate(this)">{{ t('update_check_btn') }}</button>
+    <span class="small muted" id="update-result"></span>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
     <h2>{{ t('players_online') }} <span class="pill" id="player-count">–</span></h2>
     <span class="muted mono" id="rcon-note"></span>
   </div>
@@ -83,6 +110,14 @@ function copyAddr(id, btn) {
     <span class="muted small">{{ t('rcon_setup_help') }}</span>
   </form>
   {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>{{ t('bans_title') }} <span class="pill" id="ban-count">–</span></h2>
+    <span class="muted small">{{ t('bans_hint') }}</span>
+  </div>
+  <ul class="users" id="banlist"><li class="muted">{{ t('loading') }}</li></ul>
 </section>
 
 <section class="panel">
@@ -135,7 +170,84 @@ async function poll() {
       updLog.textContent = u.logs;
       updLog.scrollTop = updLog.scrollHeight;
     }
+    if (d.res) updateResources(d.res);
   } catch (e) { /* still da, nur kurz kein Netz */ }
+}
+
+function setBar(id, pct) {
+  var b = document.getElementById(id);
+  var p = (pct == null ? 0 : Math.max(0, Math.min(100, pct)));
+  b.style.width = p + '%';
+  b.classList.toggle('hot', p >= 90);
+  b.classList.toggle('warm', p >= 75 && p < 90);
+}
+function updateResources(res) {
+  var c = res.cpu;
+  document.getElementById('res-cpu').textContent = (c == null ? '…' : c + ' %');
+  setBar('bar-cpu', c);
+  if (res.mem) {
+    document.getElementById('res-ram').textContent = res.mem.used_gb + ' / ' + res.mem.total_gb + ' GB';
+    setBar('bar-ram', res.mem.pct);
+  }
+  if (res.disk) {
+    document.getElementById('res-disk').textContent = res.disk.used_gb + ' / ' + res.disk.total_gb + ' GB';
+    setBar('bar-disk', res.disk.pct);
+  }
+}
+
+async function checkUpdate(btn) {
+  var out = document.getElementById('update-result');
+  btn.disabled = true; out.className = 'small muted'; out.textContent = {{ t('update_checking')|tojson }};
+  try {
+    const body = new URLSearchParams({ csrf: CSRF });
+    const d = await (await fetch("{{ url_for('update_check') }}", { method: 'POST', body })).json();
+    var label, cls;
+    if (d.status === 'current') { label = {{ t('update_current')|tojson }}; cls = 'small ok-text'; }
+    else if (d.status === 'available') {
+      label = {{ t('update_available')|tojson }};
+      if (d.installed && d.latest) label += ' (' + d.installed + ' → ' + d.latest + ')';
+      cls = 'small warn-text';
+    } else { label = {{ t('update_unknown')|tojson }}; cls = 'small muted'; }
+    out.className = cls; out.textContent = label;
+  } catch (e) { out.className = 'small muted'; out.textContent = {{ t('update_unknown')|tojson }}; }
+  btn.disabled = false;
+}
+
+const banlistEl = document.getElementById('banlist');
+const banCount = document.getElementById('ban-count');
+const TB = { unban: {{ t('unban_btn')|tojson }}, confirmUnban: {{ t('confirm_unban')|tojson }}, none: {{ t('bans_none')|tojson }} };
+
+function renderBans(list) {
+  banCount.textContent = list.length;
+  banlistEl.innerHTML = '';
+  if (!list.length) {
+    var li = document.createElement('li'); li.className = 'muted'; li.textContent = TB.none;
+    banlistEl.append(li); return;
+  }
+  list.forEach(function (e) {
+    var li = document.createElement('li');
+    var info = document.createElement('div'); info.className = 'player-info';
+    var sid = document.createElement('span'); sid.className = 'pname mono'; sid.textContent = e.steamid;
+    info.append(sid); li.append(info);
+    var acts = document.createElement('div'); acts.className = 'player-actions';
+    var ub = document.createElement('button'); ub.className = 'btn tiny'; ub.textContent = TB.unban;
+    ub.onclick = function () { unbanPlayer(e.steamid); };
+    acts.append(ub); li.append(acts);
+    banlistEl.append(li);
+  });
+}
+async function unbanPlayer(steamid) {
+  if (!confirm(TB.confirmUnban.replace('{id}', steamid))) return;
+  try {
+    const body = new URLSearchParams({ csrf: CSRF, steamid: steamid });
+    const d = await (await fetch("{{ url_for('bans_unban') }}", { method: 'POST', body })).json();
+    if (d.entries) renderBans(d.entries);
+  } catch (e) { /* ignore */ }
+  pollBans();
+}
+async function pollBans() {
+  try { const d = await (await fetch("{{ url_for('bans') }}")).json(); renderBans(d.entries || []); }
+  catch (e) { /* ignore */ }
 }
 
 const playersEl = document.getElementById('players');
@@ -206,8 +318,10 @@ async function pollPlayers() {
 
 poll();
 pollPlayers();
+pollBans();
 setInterval(poll, 4000);
 setInterval(pollPlayers, 8000);
+setInterval(pollBans, 20000);
 document.addEventListener('DOMContentLoaded', () => logEl.scrollTop = logEl.scrollHeight);
 </script>
 {% endblock %}

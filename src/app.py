@@ -228,6 +228,149 @@ def connect_info():
 
 
 # ---------------------------------------------------------------------------
+# Ressourcen (CPU / RAM / Disk) – containerbewusst über lxcfs
+# ---------------------------------------------------------------------------
+_cpu_prev = {"idle": None, "total": None}
+
+
+def read_cpu_percent():
+    try:
+        with open("/proc/stat") as f:
+            parts = f.readline().split()
+        vals = [int(x) for x in parts[1:]]
+        idle = vals[3] + (vals[4] if len(vals) > 4 else 0)  # idle + iowait
+        total = sum(vals)
+        prev_idle, prev_total = _cpu_prev["idle"], _cpu_prev["total"]
+        _cpu_prev["idle"], _cpu_prev["total"] = idle, total
+        if prev_total is None:
+            return None
+        d_total = total - prev_total
+        if d_total <= 0:
+            return None
+        return round(100.0 * (1.0 - (idle - prev_idle) / d_total), 1)
+    except Exception:
+        return None
+
+
+def read_mem():
+    try:
+        info = {}
+        with open("/proc/meminfo") as f:
+            for line in f:
+                k, _, v = line.partition(":")
+                if v:
+                    info[k.strip()] = int(v.strip().split()[0])  # kB
+        total = info.get("MemTotal", 0)
+        avail = info.get("MemAvailable", info.get("MemFree", 0))
+        used = total - avail
+        return {"used_gb": round(used / 1048576, 1),
+                "total_gb": round(total / 1048576, 1),
+                "pct": round(100.0 * used / total, 1) if total else None}
+    except Exception:
+        return None
+
+
+def read_disk():
+    try:
+        base = PALSERVER_DIR if os.path.exists(PALSERVER_DIR) else "/"
+        st = os.statvfs(base)
+        total = st.f_blocks * st.f_frsize
+        free = st.f_bavail * st.f_frsize
+        used = total - free
+        return {"used_gb": round(used / 1073741824, 1),
+                "total_gb": round(total / 1073741824, 1),
+                "pct": round(100.0 * used / total, 1) if total else None}
+    except Exception:
+        return None
+
+
+def resources():
+    return {"cpu": read_cpu_percent(), "mem": read_mem(), "disk": read_disk()}
+
+
+# ---------------------------------------------------------------------------
+# Version / Update-Check
+# ---------------------------------------------------------------------------
+def installed_build():
+    path = os.path.join(PALSERVER_DIR, "steamapps", "appmanifest_2394010.acf")
+    try:
+        m = re.search(r'"buildid"\s*"(\d+)"', _read_text(path))
+        return m.group(1) if m else None
+    except Exception:
+        return None
+
+
+def installed_version():
+    rc, out = run(["journalctl", "-u", SERVICE, "--no-pager", "-o", "cat",
+                   "-g", "Game version is", "-n", "5"])
+    if rc == 0 and out:
+        found = re.findall(r"Game version is (v[\d.]+)", out)
+        if found:
+            return found[-1]
+    return None
+
+
+_latest_cache = {"build": None, "ts": 0.0}
+
+
+def latest_build(timeout=4.0):
+    now = time.time()
+    if _latest_cache["build"] and now - _latest_cache["ts"] < 1800:
+        return _latest_cache["build"]
+    try:
+        req = urllib.request.Request("https://api.steamcmd.net/v1/info/2394010",
+                                     headers={"User-Agent": "palworld-panel"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8", "ignore"))
+        b = (data.get("data", {}).get("2394010", {}).get("depots", {})
+                 .get("branches", {}).get("public", {}).get("buildid"))
+        if b:
+            _latest_cache.update(build=str(b), ts=now)
+    except Exception:
+        pass
+    return _latest_cache["build"]
+
+
+# ---------------------------------------------------------------------------
+# Bannliste (Pal/Saved/SaveGames/banlist.txt)
+# ---------------------------------------------------------------------------
+def banlist_path():
+    return os.path.join(PALSERVER_DIR, "Pal", "Saved", "SaveGames", "banlist.txt")
+
+
+def read_banlist():
+    path = banlist_path()
+    entries = []
+    if os.path.exists(path):
+        try:
+            for line in _read_text(path).splitlines():
+                s = line.strip()
+                if s:
+                    sid = s[6:] if s.lower().startswith("steam_") else s
+                    entries.append({"raw": s, "steamid": sid})
+        except Exception:
+            pass
+    return entries
+
+
+def remove_from_banlist(sid):
+    path = banlist_path()
+    if not os.path.exists(path):
+        return False
+    try:
+        lines = [l for l in _read_text(path).splitlines() if l.strip()]
+        drop = {sid, "steam_" + sid, "steam_" + sid.lower()}
+        keep = [l for l in lines if l.strip() not in drop]
+        if len(keep) != len(lines):
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("\n".join(keep) + ("\n" if keep else ""))
+            return True
+    except Exception:
+        pass
+    return False
+
+
+# ---------------------------------------------------------------------------
 # PalWorldSettings.ini parsen / schreiben
 # ---------------------------------------------------------------------------
 def _split_options(inner):
@@ -473,6 +616,8 @@ def dashboard():
         connect_ip=c_ip,
         connect_port=c_port,
         connect_kind=c_kind,
+        version=installed_version(),
+        build=installed_build(),
     )
 
 
@@ -484,7 +629,52 @@ def status():
         update=service_active(UPDATE_SERVICE),
         enabled=service_enabled(SERVICE),
         logs=recent_logs(SERVICE, 60),
+        res=resources(),
     )
+
+
+@app.route("/update-check", methods=["POST"])
+@login_required
+def update_check():
+    if not check_csrf():
+        return jsonify(ok=False, msg=t("csrf_invalid"))
+    inst = installed_build()
+    latest = latest_build()
+    if inst and latest:
+        status_key = "current" if inst == latest else "available"
+    else:
+        status_key = "unknown"
+    return jsonify(ok=True, installed=inst, version=installed_version(),
+                   latest=latest, status=status_key)
+
+
+@app.route("/bans")
+@login_required
+def bans():
+    return jsonify(entries=read_banlist())
+
+
+@app.route("/bans/unban", methods=["POST"])
+@login_required
+def bans_unban():
+    if not check_csrf():
+        return jsonify(ok=False, msg=t("csrf_invalid"))
+    sid = (request.form.get("steamid") or "").strip()
+    if not sid:
+        return jsonify(ok=False, msg=t("no_steamid"))
+    rcon_ok = False
+    try:
+        with rcon_connect() as r:
+            r.unban(sid)
+        rcon_ok = True
+    except (RCONError, OSError):
+        pass
+    removed = remove_from_banlist(sid)
+    if rcon_ok:
+        return jsonify(ok=True, msg=t("unban_done"), entries=read_banlist())
+    if removed:
+        return jsonify(ok=True, msg=t("unban_file_only"), entries=read_banlist())
+    return jsonify(ok=False, msg=t("unban_failed"), entries=read_banlist())
 
 
 @app.route("/action", methods=["POST"])
