@@ -8,6 +8,8 @@ TRANSLATIONS = {
     # -- Navigation / allgemein --
     "nav_overview": {"de": "Übersicht", "en": "Overview"},
     "nav_config": {"de": "Konfiguration", "en": "Configuration"},
+    "nav_mods": {"de": "Mods", "en": "Mods"},
+    "nav_save": {"de": "Speicherstand", "en": "Save game"},
     "nav_users": {"de": "Benutzer", "en": "Users"},
     "nav_account": {"de": "Konto", "en": "Account"},
     "nav_logout": {"de": "Abmelden", "en": "Log out"},
@@ -106,6 +108,66 @@ TRANSLATIONS = {
     "bans_hint": {
         "de": "Palworld kann Bans nicht per RCON auflisten – die Liste kommt aus banlist.txt.",
         "en": "Palworld cannot list bans via RCON – the list comes from banlist.txt."},
+    # -- Mods --
+    "mods_title": {"de": "Mods", "en": "Mods"},
+    "mods_warn": {
+        "de": "Nur server-kompatible Pak-Mods verwenden. Wichtig: Server-Mods müssen auf dem "
+              "Server UND bei allen Spielern identisch vorhanden sein, sonst schlägt der "
+              "Beitritt fehl – und Crossplay (Steam + Xbox) bricht mit Mods meist komplett. "
+              "Immer zuerst die Welt sichern.",
+        "en": "Only use server-compatible pak mods. Important: server mods must exist "
+              "identically on the server AND on every player's client, otherwise joining "
+              "fails — and crossplay (Steam + Xbox) usually breaks entirely with mods. "
+              "Always back up your world first."},
+    "mods_upload_label": {"de": ".pak / .ucas / .utoc hochladen", "en": "Upload .pak / .ucas / .utoc"},
+    "mods_upload_btn": {"de": "Hochladen", "en": "Upload"},
+    "mods_none": {"de": "Keine Mods installiert.", "en": "No mods installed."},
+    "mods_active": {"de": "aktiv", "en": "active"},
+    "mods_inactive": {"de": "inaktiv", "en": "inactive"},
+    "mod_enable": {"de": "Aktivieren", "en": "Enable"},
+    "mod_disable": {"de": "Deaktivieren", "en": "Disable"},
+    "mod_delete": {"de": "Löschen", "en": "Delete"},
+    "mod_confirm_delete": {"de": "Mod {name} löschen?", "en": "Delete mod {name}?"},
+    "mods_restart_hint": {
+        "de": "Änderungen greifen nach einem Server-Neustart. Ordner:",
+        "en": "Changes take effect after a server restart. Folder:"},
+    "mod_uploaded": {"de": "{n} Datei(en) hochgeladen.", "en": "{n} file(s) uploaded."},
+    "mod_rejected": {"de": "{n} Datei(en) abgelehnt (nur .pak/.ucas/.utoc erlaubt).",
+                     "en": "{n} file(s) rejected (only .pak/.ucas/.utoc allowed)."},
+    "mod_none_selected": {"de": "Keine Datei ausgewählt.", "en": "No file selected."},
+    "mod_enabled": {"de": "Mod '{name}' aktiviert.", "en": "Mod '{name}' enabled."},
+    "mod_disabled": {"de": "Mod '{name}' deaktiviert.", "en": "Mod '{name}' disabled."},
+    "mod_deleted": {"de": "Mod '{name}' gelöscht.", "en": "Mod '{name}' deleted."},
+    "mod_not_found": {"de": "Mod nicht gefunden.", "en": "Mod not found."},
+    # -- Speicherstand (Export/Import) --
+    "save_title": {"de": "Speicherstand", "en": "Save game"},
+    "save_export_head": {"de": "Eigenen Speicherstand herunterladen", "en": "Download your save game"},
+    "save_export_hint": {
+        "de": "Lädt den aktiven Welt-Ordner als ZIP herunter. Läuft der Server, wird vorher "
+              "per RCON gespeichert. Für einen 100 % konsistenten Stand den Server vorher stoppen.",
+        "en": "Downloads the active world folder as a ZIP. If the server is running, it is "
+              "saved via RCON first. For a fully consistent snapshot, stop the server first."},
+    "save_export_btn": {"de": "Speicherstand herunterladen", "en": "Download save game"},
+    "save_current_world": {"de": "Aktive Welt", "en": "Active world"},
+    "save_no_world": {"de": "Kein Welt-Ordner gefunden.", "en": "No world folder found."},
+    "save_import_head": {"de": "Speicherstand von anderem Server einspielen", "en": "Import save from another server"},
+    "save_import_hint": {
+        "de": "ZIP mit dem Welt-Ordner (enthält Level.sav, Players/ …) hochladen. Der Server "
+              "MUSS gestoppt sein. Der aktuelle Stand wird vorher automatisch gesichert, danach "
+              "wird DedicatedServerName auf die importierte Welt gesetzt.",
+        "en": "Upload a ZIP with the world folder (contains Level.sav, Players/ …). The server "
+              "MUST be stopped. Your current save is backed up automatically first, then "
+              "DedicatedServerName is set to the imported world."},
+    "save_import_btn": {"de": "Speicherstand einspielen", "en": "Import save game"},
+    "save_stop_first": {"de": "Bitte zuerst den Server stoppen, dann importieren.",
+                        "en": "Please stop the server first, then import."},
+    "save_need_zip": {"de": "Bitte eine .zip-Datei auswählen.", "en": "Please select a .zip file."},
+    "save_bad_zip": {"de": "Ungültiges Archiv – kein Welt-Ordner mit Level.sav gefunden.",
+                     "en": "Invalid archive – no world folder with Level.sav found."},
+    "save_imported": {"de": "Speicherstand '{wid}' eingespielt. Server starten zum Übernehmen.",
+                      "en": "Save game '{wid}' imported. Start the server to apply."},
+    "save_running_warn": {"de": "Server läuft – für den Import zuerst stoppen.",
+                          "en": "Server is running – stop it before importing."},
 
     # -- Konfiguration --
     "cfg_notice": {

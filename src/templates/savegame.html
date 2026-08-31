@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ t('save_title') }} · Palworld Panel{% endblock %}
+{% block content %}
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>{{ t('save_export_head') }}</h2>
+    {% if world_id %}<span class="muted mono small">{{ t('save_current_world') }}: {{ world_id }}</span>{% endif %}
+  </div>
+  <p class="muted small">{{ t('save_export_hint') }}</p>
+  {% if world_id %}
+  <a class="btn primary" href="{{ url_for('savegame_export') }}">{{ t('save_export_btn') }}</a>
+  {% else %}
+  <p class="muted">{{ t('save_no_world') }}</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>{{ t('save_import_head') }}</h2></div>
+  <div class="notice">{{ t('save_import_hint') }}</div>
+  {% if running %}
+  <p class="warn-text">{{ t('save_running_warn') }}</p>
+  {% endif %}
+  <form method="post" action="{{ url_for('savegame_import') }}" enctype="multipart/form-data" class="user-add">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="file" name="savezip" accept=".zip" required {{ 'disabled' if running }}>
+    <button class="btn primary" type="submit" {{ 'disabled' if running }}>{{ t('save_import_btn') }}</button>
+  </form>
+</section>
+{% endblock %}

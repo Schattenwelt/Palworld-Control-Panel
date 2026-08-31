@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ t('mods_title') }} · Palworld Panel{% endblock %}
+{% block content %}
+
+<div class="notice">{{ t('mods_warn') }}</div>
+
+<section class="panel">
+  <div class="panel-head"><h2>{{ t('mods_upload_label') }}</h2></div>
+  <form method="post" action="{{ url_for('mods_upload') }}" enctype="multipart/form-data" class="user-add">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="file" name="modfiles" accept=".pak,.ucas,.utoc" multiple required>
+    <button class="btn primary" type="submit">{{ t('mods_upload_btn') }}</button>
+  </form>
+  <p class="muted small">{{ t('mods_restart_hint') }} <span class="mono">{{ mods_path }}</span></p>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>{{ t('mods_title') }} <span class="pill">{{ mods|length }}</span></h2>
+  </div>
+  {% if not mods %}
+    <p class="muted">{{ t('mods_none') }}</p>
+  {% else %}
+  <ul class="users">
+    {% for m in mods %}
+    <li>
+      <div class="player-info">
+        <span class="pname mono">{{ m.name }}</span>
+        {% if m.enabled %}<span class="addr-kind auto">{{ t('mods_active') }}</span>
+        {% else %}<span class="addr-kind">{{ t('mods_inactive') }}</span>{% endif %}
+        <span class="muted small">{{ m.size_mb }} MB</span>
+      </div>
+      <div class="player-actions">
+        <form method="post" action="{{ url_for('mods_toggle') }}" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <input type="hidden" name="name" value="{{ m.name }}">
+          <input type="hidden" name="enable" value="{{ '0' if m.enabled else '1' }}">
+          <button class="btn" type="submit">{{ t('mod_disable') if m.enabled else t('mod_enable') }}</button>
+        </form>
+        <form method="post" action="{{ url_for('mods_delete') }}" class="inline"
+              onsubmit="return confirm('{{ t('mod_confirm_delete', name=m.name) }}');">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <input type="hidden" name="name" value="{{ m.name }}">
+          <button class="btn danger" type="submit">{{ t('mod_delete') }}</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endblock %}

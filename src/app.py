@@ -4,20 +4,26 @@ Palworld Control Panel
 Ein schlankes, login-geschütztes Web-Panel zum Starten, Stoppen, Aktualisieren
 und Konfigurieren eines Palworld-Dedicated-Servers, der als systemd-Service läuft.
 """
+import datetime
 import json
 import os
 import re
 import secrets
+import shutil
 import socket
 import subprocess
+import tempfile
 import threading
 import time
 import urllib.request
+import zipfile
 from functools import wraps
 
 from flask import (Flask, Response, redirect, render_template, request,
-                   session, url_for, flash, jsonify)
+                   session, url_for, flash, jsonify, send_file,
+                   after_this_request)
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
 from rcon import PalworldRCON, RCONError
 from i18n import translate, LANGS, DEFAULT_LANG
@@ -40,6 +46,9 @@ DEFAULT_INI = os.path.join(PALSERVER_DIR, "DefaultPalWorldSettings.ini")
 
 app = Flask(__name__)
 app.secret_key = CONF["secret_key"]
+app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024  # 1 GiB Upload-Limit für Mods
+
+PANEL_VERSION = "1.1.0"
 
 # ---------------------------------------------------------------------------
 # Benutzer-Store (users.json) – alle Konten sind gleichberechtigt
@@ -121,7 +130,8 @@ app.jinja_env.globals["LANGS"] = LANGS
 
 @app.context_processor
 def inject_me():
-    return {"me": current_user()}
+    return {"me": current_user(),
+            "panel_version": PANEL_VERSION}
 
 
 @app.route("/lang/<code>")
@@ -368,6 +378,161 @@ def remove_from_banlist(sid):
     except Exception:
         pass
     return False
+
+
+# ---------------------------------------------------------------------------
+# Pak-Mods (Pal/Content/Paks/~mods) – Upload / Aktivieren / Löschen
+# ---------------------------------------------------------------------------
+MOD_EXTS = (".pak", ".ucas", ".utoc")
+
+
+def mods_dir():
+    return os.path.join(PALSERVER_DIR, "Pal", "Content", "Paks", "~mods")
+
+
+def ensure_mods_dir():
+    d = mods_dir()
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _mod_files(d, stem):
+    files = []
+    for ext in MOD_EXTS:
+        for suf in (ext, ext + ".disabled"):
+            p = os.path.join(d, stem + suf)
+            if os.path.isfile(p):
+                files.append(p)
+    return files
+
+
+def list_mods():
+    d = mods_dir()
+    stems = {}
+    if os.path.isdir(d):
+        for fn in os.listdir(d):
+            if not os.path.isfile(os.path.join(d, fn)):
+                continue
+            if fn.endswith(".pak"):
+                stems[fn[:-4]] = True
+            elif fn.endswith(".pak.disabled"):
+                stems.setdefault(fn[: -len(".pak.disabled")], False)
+    out = []
+    for stem, enabled in sorted(stems.items()):
+        size = sum(os.path.getsize(p) for p in _mod_files(d, stem))
+        out.append({"name": stem, "enabled": enabled,
+                    "size_mb": round(size / 1048576, 1)})
+    return out
+
+
+def toggle_mod(stem, enable):
+    d = mods_dir()
+    for ext in MOD_EXTS:
+        on = os.path.join(d, stem + ext)
+        off = on + ".disabled"
+        try:
+            if enable and os.path.isfile(off):
+                os.rename(off, on)
+            elif not enable and os.path.isfile(on):
+                os.rename(on, off)
+        except OSError:
+            pass
+
+
+def delete_mod(stem):
+    removed = False
+    for p in _mod_files(mods_dir(), stem):
+        try:
+            os.remove(p)
+            removed = True
+        except OSError:
+            pass
+    return removed
+
+
+# ---------------------------------------------------------------------------
+# Speicherstände (Pal/Saved/SaveGames/0/<WorldID>) – Export / Import
+# ---------------------------------------------------------------------------
+def savegames_root():
+    return os.path.join(PALSERVER_DIR, "Pal", "Saved", "SaveGames", "0")
+
+
+def backups_root():
+    return os.path.join(os.path.dirname(os.path.normpath(PALSERVER_DIR)), "backups")
+
+
+def gus_path():
+    return os.path.join(PALSERVER_DIR, "Pal", "Saved", "Config",
+                        "LinuxServer", "GameUserSettings.ini")
+
+
+def read_dedicated_server_name():
+    try:
+        m = re.search(r"(?mi)^\s*DedicatedServerName\s*=\s*(\S+)", _read_text(gus_path()))
+        return m.group(1).strip() if m else ""
+    except Exception:
+        return ""
+
+
+def set_dedicated_server_name(name):
+    p = gus_path()
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    txt = _read_text(p) if os.path.exists(p) else ""
+    if re.search(r"(?mi)^\s*DedicatedServerName\s*=", txt):
+        txt = re.sub(r"(?mi)^(\s*DedicatedServerName\s*=).*$", lambda m: m.group(1) + name, txt)
+    else:
+        section = "[/Script/Pal.PalGameLocalSettings]"
+        if section in txt:
+            txt = txt.replace(section, section + "\nDedicatedServerName=" + name, 1)
+        else:
+            if txt and not txt.endswith("\n"):
+                txt += "\n"
+            txt += section + "\nDedicatedServerName=" + name + "\n"
+    with open(p, "w", encoding="utf-8") as f:
+        f.write(txt)
+
+
+def _is_world_dir(path):
+    return os.path.isdir(path) and os.path.isfile(os.path.join(path, "Level.sav"))
+
+
+def list_world_folders():
+    root = savegames_root()
+    out = []
+    if os.path.isdir(root):
+        for name in sorted(os.listdir(root)):
+            if _is_world_dir(os.path.join(root, name)):
+                out.append(name)
+    return out
+
+
+def current_world_id():
+    """Aktive Welt: DedicatedServerName (falls Ordner existiert), sonst der einzige Welt-Ordner."""
+    name = read_dedicated_server_name()
+    if name and _is_world_dir(os.path.join(savegames_root(), name)):
+        return name
+    worlds = list_world_folders()
+    return worlds[0] if len(worlds) == 1 else (name or None)
+
+
+def find_world_dir(base):
+    for root, _dirs, files in os.walk(base):
+        if "Level.sav" in files:
+            return root
+    return None
+
+
+def backup_saves(tag="backup"):
+    """Zippt SaveGames/0 nach /home/palworld/backups. Gibt den Pfad zurück oder None."""
+    root = savegames_root()
+    if not os.path.isdir(root):
+        return None
+    bdir = backups_root()
+    os.makedirs(bdir, exist_ok=True)
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    base = os.path.join(bdir, f"saves-{tag}-{stamp}")
+    path = shutil.make_archive(base, "zip", root_dir=os.path.dirname(root), base_dir="0")
+    return path
 
 
 # ---------------------------------------------------------------------------
@@ -675,6 +840,166 @@ def bans_unban():
     if removed:
         return jsonify(ok=True, msg=t("unban_file_only"), entries=read_banlist())
     return jsonify(ok=False, msg=t("unban_failed"), entries=read_banlist())
+
+
+@app.route("/mods")
+@login_required
+def mods_page():
+    return render_template("mods.html", mods=list_mods(), mods_path=mods_dir())
+
+
+@app.route("/mods/upload", methods=["POST"])
+@login_required
+def mods_upload():
+    if not check_csrf():
+        flash(t("csrf_invalid"))
+        return redirect(url_for("mods_page"))
+    d = ensure_mods_dir()
+    saved = rejected = 0
+    for f in request.files.getlist("modfiles"):
+        if not f or not f.filename:
+            continue
+        name = secure_filename(f.filename)
+        if name.lower().endswith(MOD_EXTS):
+            f.save(os.path.join(d, name))
+            saved += 1
+        else:
+            rejected += 1
+    if saved:
+        flash(t("mod_uploaded", n=saved))
+    if rejected:
+        flash(t("mod_rejected", n=rejected))
+    if not saved and not rejected:
+        flash(t("mod_none_selected"))
+    return redirect(url_for("mods_page"))
+
+
+@app.route("/mods/toggle", methods=["POST"])
+@login_required
+def mods_toggle():
+    if not check_csrf():
+        flash(t("csrf_invalid"))
+        return redirect(url_for("mods_page"))
+    stem = request.form.get("name", "")
+    enable = request.form.get("enable") == "1"
+    if stem in {m["name"] for m in list_mods()}:
+        toggle_mod(stem, enable)
+        flash(t("mod_enabled" if enable else "mod_disabled", name=stem))
+    else:
+        flash(t("mod_not_found"))
+    return redirect(url_for("mods_page"))
+
+
+@app.route("/mods/delete", methods=["POST"])
+@login_required
+def mods_delete():
+    if not check_csrf():
+        flash(t("csrf_invalid"))
+        return redirect(url_for("mods_page"))
+    stem = request.form.get("name", "")
+    if stem in {m["name"] for m in list_mods()} and delete_mod(stem):
+        flash(t("mod_deleted", name=stem))
+    else:
+        flash(t("mod_not_found"))
+    return redirect(url_for("mods_page"))
+
+
+@app.route("/savegame")
+@login_required
+def savegame_page():
+    return render_template("savegame.html",
+                           world_id=current_world_id(),
+                           worlds=list_world_folders(),
+                           running=(service_active(SERVICE) == "active"))
+
+
+@app.route("/savegame/export")
+@login_required
+def savegame_export():
+    wid = current_world_id()
+    world_dir = os.path.join(savegames_root(), wid) if wid else None
+    if not wid or not _is_world_dir(world_dir):
+        flash(t("save_no_world"))
+        return redirect(url_for("savegame_page"))
+    # Bei laufendem Server vorher per RCON flushen (best effort)
+    if service_active(SERVICE) == "active":
+        try:
+            with rcon_connect() as r:
+                r.save()
+            time.sleep(1)
+        except (RCONError, OSError):
+            pass
+    tmp = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+    tmp.close()
+    with zipfile.ZipFile(tmp.name, "w", zipfile.ZIP_DEFLATED) as z:
+        for root, _dirs, files in os.walk(world_dir):
+            for fn in files:
+                full = os.path.join(root, fn)
+                z.write(full, os.path.relpath(full, savegames_root()))
+
+    @after_this_request
+    def _cleanup(resp):
+        try:
+            os.remove(tmp.name)
+        except OSError:
+            pass
+        return resp
+
+    fname = "palworld-save-%s-%s.zip" % (wid, datetime.datetime.now().strftime("%Y%m%d-%H%M"))
+    return send_file(tmp.name, as_attachment=True, download_name=fname,
+                     mimetype="application/zip")
+
+
+@app.route("/savegame/import", methods=["POST"])
+@login_required
+def savegame_import():
+    if not check_csrf():
+        flash(t("csrf_invalid"))
+        return redirect(url_for("savegame_page"))
+    if service_active(SERVICE) in ("active", "activating"):
+        flash(t("save_stop_first"))
+        return redirect(url_for("savegame_page"))
+    f = request.files.get("savezip")
+    if not f or not f.filename or not f.filename.lower().endswith(".zip"):
+        flash(t("save_need_zip"))
+        return redirect(url_for("savegame_page"))
+
+    tmpdir = tempfile.mkdtemp()
+    try:
+        zpath = os.path.join(tmpdir, "upload.zip")
+        f.save(zpath)
+        try:
+            with zipfile.ZipFile(zpath) as z:
+                for n in z.namelist():
+                    if n.startswith("/") or ".." in n.replace("\\", "/").split("/"):
+                        flash(t("save_bad_zip"))
+                        return redirect(url_for("savegame_page"))
+                z.extractall(os.path.join(tmpdir, "x"))
+        except zipfile.BadZipFile:
+            flash(t("save_bad_zip"))
+            return redirect(url_for("savegame_page"))
+
+        world_src = find_world_dir(os.path.join(tmpdir, "x"))
+        if not world_src:
+            flash(t("save_bad_zip"))
+            return redirect(url_for("savegame_page"))
+
+        wid = os.path.basename(world_src.rstrip("/"))
+        if not re.fullmatch(r"[A-Za-z0-9]+", wid or ""):
+            wid = secrets.token_hex(16).upper()
+
+        backup_saves(tag="before-import")
+        root = savegames_root()
+        os.makedirs(root, exist_ok=True)
+        dest = os.path.join(root, wid)
+        if os.path.exists(dest):
+            shutil.rmtree(dest, ignore_errors=True)
+        shutil.copytree(world_src, dest)
+        set_dedicated_server_name(wid)
+        flash(t("save_imported", wid=wid))
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+    return redirect(url_for("savegame_page"))
 
 
 @app.route("/action", methods=["POST"])

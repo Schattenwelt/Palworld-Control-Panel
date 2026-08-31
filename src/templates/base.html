@@ -17,6 +17,8 @@
     <nav class="nav">
       <a href="{{ url_for('dashboard') }}" class="{{ 'on' if request.endpoint == 'dashboard' }}">{{ t('nav_overview') }}</a>
       <a href="{{ url_for('config') }}" class="{{ 'on' if request.endpoint == 'config' }}">{{ t('nav_config') }}</a>
+      <a href="{{ url_for('mods_page') }}" class="{{ 'on' if request.endpoint == 'mods_page' }}">{{ t('nav_mods') }}</a>
+      <a href="{{ url_for('savegame_page') }}" class="{{ 'on' if request.endpoint == 'savegame_page' }}">{{ t('nav_save') }}</a>
       <a href="{{ url_for('users_page') }}" class="{{ 'on' if request.endpoint == 'users_page' }}">{{ t('nav_users') }}</a>
       <a href="{{ url_for('account') }}" class="{{ 'on' if request.endpoint == 'account' }}">{{ t('nav_account') }}</a>
       {% if me %}<span class="nav-user">{{ me.name }}</span>{% endif %}
@@ -40,5 +42,8 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
+  <footer class="foot">
+    Palworld Control Panel v{{ panel_version }}
+  </footer>
 </body>
 </html>

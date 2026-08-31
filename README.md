@@ -24,6 +24,8 @@ The interface is available in **German and English** (switchable in the top bar)
 - **Ban list**: view banned SteamIDs (from `banlist.txt`) and unban via RCON `UnBanPlayer`
 - **Live resources**: CPU / RAM / disk usage on the dashboard
 - **Update check**: shows the installed build/version and whether a newer build exists
+- **Save game export/import**: download the active world as a ZIP, or import a world from another server (backs up first, sets `DedicatedServerName`; server must be stopped)
+- **Pak-mod manager**: upload `.pak`/`.ucas`/`.utoc` server mods into `~mods/`, enable/disable/delete them (server-side pak mods only; clients must match, breaks crossplay)
 - **Multiple user accounts**: add / reset / delete users in the UI; each user can change
   their own password. All accounts are equal.
 - Runs as a non-root system user with a narrow `sudo` allow-list
@@ -69,6 +71,19 @@ Pull the latest code and refresh only the panel (your accounts and config are un
 git pull
 sudo bash scripts/update.sh
 ```
+
+## Auto-update (daily)
+
+Enable a daily systemd timer that pulls this repo and redeploys the panel (only the panel is restarted, not the game server; your accounts and config stay):
+
+```bash
+sudo bash scripts/setup-autoupdate.sh          # runs daily ~04:30
+sudo bash scripts/setup-autoupdate.sh --run-now  # and update immediately
+```
+
+Custom repo/time: `PANEL_REPO_URL=... UPDATE_TIME=03:15 sudo bash scripts/setup-autoupdate.sh`.
+Disable: `sudo systemctl disable --now palworld-panel-update.timer`.
+The panel footer shows the running version and the deployed commit.
 
 ## Repairing config / RCON
 
