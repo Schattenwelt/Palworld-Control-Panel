@@ -9,7 +9,9 @@
   </div>
   <p class="muted small">{{ t('save_export_hint') }}</p>
   {% if world_id %}
-  <a class="btn primary" href="{{ url_for('savegame_export') }}">{{ t('save_export_btn') }}</a>
+  <div class="actions">
+    <a class="btn primary" href="{{ url_for('savegame_export') }}">{{ t('save_export_btn') }}</a>
+  </div>
   {% else %}
   <p class="muted">{{ t('save_no_world') }}</p>
   {% endif %}
