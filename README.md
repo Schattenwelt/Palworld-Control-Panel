@@ -56,6 +56,8 @@ cd palworld-control-panel
 bash install.sh
 ```
 
+Ports are fixed at install time (defaults: game 8211/UDP, RCON 25575) and locked in the panel; set custom ones with `GAME_PORT=... RCON_PORT=... bash install.sh`.
+
 The installer asks for a panel username and password (or pass them non-interactively
 via `PANEL_USER=... PANEL_PASS=... bash install.sh`). The panel defaults to **port 80**;
 override with `PANEL_PORT=8080 bash install.sh`.

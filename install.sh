@@ -17,6 +17,8 @@ PAL_HOME="/home/palworld"
 INSTALL_DIR="/home/palworld/palserver"
 PANEL_DIR="/opt/palworld-panel"
 PANEL_PORT="${PANEL_PORT:-80}"         # Port des Web-Panels
+GAME_PORT="${GAME_PORT:-8211}"         # Spiel-Port (UDP) – beim Installieren festgelegt
+RCON_PORT="${RCON_PORT:-25575}"        # RCON-Port (nur intern) – beim Installieren festgelegt
 APPID="2394010"
 STEAMCMD="/usr/games/steamcmd"
 
@@ -96,8 +98,8 @@ sudo -u "$PAL_USER" -H bash -c "\
 # Standard-Config als Basis bereitstellen und RCON server-intern aktivieren
 msg "Bereite PalWorldSettings.ini vor (RCON intern aktiviert) ..."
 RCON_PW="$(python3 -c 'import secrets;print(secrets.token_urlsafe(12))')"
-sudo -u "$PAL_USER" -H INSTALL_DIR="$INSTALL_DIR" RCON_PW="$RCON_PW" python3 - <<'PY'
-import os, shutil
+sudo -u "$PAL_USER" -H INSTALL_DIR="$INSTALL_DIR" RCON_PW="$RCON_PW" GAME_PORT="$GAME_PORT" RCON_PORT="$RCON_PORT" python3 - <<'PY'
+import os, re, shutil
 d = os.environ["INSTALL_DIR"]
 cfgdir = os.path.join(d, "Pal/Saved/Config/LinuxServer")
 os.makedirs(cfgdir, exist_ok=True)
@@ -110,6 +112,8 @@ if os.path.exists(active):
     raw = raw.replace("RCONEnabled=False", "RCONEnabled=True")
     if 'AdminPassword=""' in raw:
         raw = raw.replace('AdminPassword=""', 'AdminPassword="%s"' % os.environ["RCON_PW"], 1)
+    raw = re.sub(r'PublicPort=\d+', 'PublicPort=%s' % os.environ["GAME_PORT"], raw)
+    raw = re.sub(r'RCONPort=\d+', 'RCONPort=%s' % os.environ["RCON_PORT"], raw)
     open(active, "w", encoding="utf-8").write(raw)
 PY
 
@@ -138,7 +142,7 @@ Type=simple
 User=palworld
 Group=palworld
 WorkingDirectory=/home/palworld/palserver
-ExecStart=/home/palworld/palserver/PalServer.sh -useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS
+ExecStart=/home/palworld/palserver/PalServer.sh -useperfthreads -NoAsyncLoadingThread -UseMultithreadForDS -port=__GAME_PORT__ -publicport=__GAME_PORT__
 Restart=on-failure
 RestartSec=10
 
@@ -186,6 +190,7 @@ RestartSec=5
 WantedBy=multi-user.target
 UNIT
 sed -i "s/__PANEL_PORT__/${PANEL_PORT}/" /etc/systemd/system/palworld-panel.service
+sed -i "s/__GAME_PORT__/${GAME_PORT}/g" /etc/systemd/system/palworld.service
 
 # ------------------------- Python-venv + Flask ------------------------------
 msg "Richte Python-Umgebung für das Panel ein ..."
@@ -195,7 +200,7 @@ python3 -m venv "$PANEL_DIR/venv"
 
 # ------------------------- panel.json + users.json --------------------------
 msg "Erzeuge Panel-Konfiguration und ersten Benutzer ..."
-PANEL_USER="$PANEL_USER" PANEL_PASS="$PANEL_PASS" \
+PANEL_USER="$PANEL_USER" PANEL_PASS="$PANEL_PASS" GAME_PORT="$GAME_PORT" RCON_PORT="$RCON_PORT" \
 "$PANEL_DIR/venv/bin/python" - <<'PY'
 import json, os, secrets
 from werkzeug.security import generate_password_hash
@@ -207,6 +212,8 @@ conf = {
     "update_service": "palworld-update.service",
     "users_path": "/opt/palworld-panel/users.json",
     "rcon_host": "127.0.0.1",
+    "game_port": int(os.environ["GAME_PORT"]),
+    "rcon_port": int(os.environ["RCON_PORT"]),
 }
 with open("/opt/palworld-panel/panel.json", "w") as fh:
     json.dump(conf, fh, indent=2)

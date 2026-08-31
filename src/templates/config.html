@@ -6,6 +6,8 @@
 <div class="notice">{{ t('cfg_notice', path=ini_path) }}</div>
 {% endif %}
 
+<div class="notice">{{ t('ports_locked', game=game_port, rcon=rcon_port) }}</div>
+
 <div class="tabs">
   <button class="tab on" data-tab="form">{{ t('tab_settings') }}</button>
   <button class="tab" data-tab="raw">{{ t('tab_raw') }}</button>

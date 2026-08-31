@@ -177,6 +177,11 @@ TRANSLATIONS = {
               "your own file will be created at {path} on first save."},
     "tab_settings": {"de": "Einstellungen", "en": "Settings"},
     "tab_raw": {"de": "Rohdatei", "en": "Raw file"},
+    "ports_locked": {
+        "de": "Ports sind beim Installieren festgelegt und hier gesperrt – "
+              "Spiel-Port {game}/UDP, RCON-Port {rcon} (nur intern).",
+        "en": "Ports are set at install time and locked here – "
+              "game port {game}/UDP, RCON port {rcon} (internal only)."},
     "cfg_save_hint": {"de": "Änderungen greifen nach einem Neustart des Servers.",
                       "en": "Changes take effect after a server restart."},
     "cfg_save_raw_btn": {"de": "Rohdatei speichern", "en": "Save raw file"},

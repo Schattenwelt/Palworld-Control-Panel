@@ -48,7 +48,7 @@ app = Flask(__name__)
 app.secret_key = CONF["secret_key"]
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024  # 1 GiB Upload-Limit für Mods
 
-PANEL_VERSION = "1.1.0"
+PANEL_VERSION = "1.3.0"
 
 # ---------------------------------------------------------------------------
 # Benutzer-Store (users.json) – alle Konten sind gleichberechtigt
@@ -225,9 +225,9 @@ def detect_public_ip(timeout=2.0):
 
 def connect_info():
     """Liefert (adresse, port, art) für die Verbinden-Box.
-    Priorität: PublicIP aus der INI (manuell) -> automatische öffentliche IP -> lokal."""
+    Port ist fest (beim Installieren gesetzt); Adresse: PublicIP -> auto -> lokal."""
     opts = ini_lookup()
-    port = (opts.get("PublicPort") or "8211").strip() or "8211"
+    port = game_port()
     manual = (opts.get("PublicIP") or "").strip()
     if manual:
         return manual, port, "manual"
@@ -707,11 +707,34 @@ def rcon_config():
     raw = _read_text(INI_PATH) if os.path.exists(INI_PATH) else ""
     m = re.search(r"RCONEnabled\s*=\s*(True|False)", raw, re.IGNORECASE)
     enabled = bool(m) and m.group(1).lower() == "true"
-    mp = re.search(r"RCONPort\s*=\s*(\d+)", raw)
-    port = mp.group(1) if mp else "25575"
     ma = re.search(r'AdminPassword\s*=\s*"([^"]*)"', raw)
     password = ma.group(1) if ma else ""
-    return enabled, port, password
+    return enabled, rcon_port(), password
+
+
+# Ports werden beim Installieren festgelegt und sind im Panel gesperrt.
+LOCKED_OPTIONS = {"PublicPort", "RCONPort"}
+
+
+def _ini_port(key, default):
+    raw = _read_text(INI_PATH) if os.path.exists(INI_PATH) else ""
+    m = re.search(key + r"\s*=\s*(\d+)", raw)
+    return m.group(1) if m else default
+
+
+def game_port():
+    p = CONF.get("game_port")
+    return str(p) if p else _ini_port("PublicPort", "8211")
+
+
+def rcon_port():
+    p = CONF.get("rcon_port")
+    return str(p) if p else _ini_port("RCONPort", "25575")
+
+
+def enforce_fixed_ports():
+    """Schreibt die festen Ports (aus panel.json bzw. INI-Fallback) in die INI zurück."""
+    write_settings({"PublicPort": game_port(), "RCONPort": rcon_port()})
 
 
 def rcon_connect():
@@ -727,9 +750,7 @@ def ensure_rcon_configured():
     """Aktiviert RCON in der INI (localhost-intern). Erzeugt bei Bedarf ein AdminPassword.
     Gibt das erzeugte Passwort zurück (oder None, wenn schon eines vorhanden war)."""
     enabled, port, password = rcon_config()
-    changes = {"RCONEnabled": "True"}
-    if not port:
-        changes["RCONPort"] = "25575"
+    changes = {"RCONEnabled": "True", "RCONPort": rcon_port()}
     generated = None
     if not password:
         generated = secrets.token_urlsafe(12)
@@ -1043,8 +1064,10 @@ def update_logs():
 @login_required
 def config():
     settings, raw, active, using_default = read_settings()
+    settings = [s for s in settings if s[0] not in LOCKED_OPTIONS]
     return render_template("config.html", settings=settings, raw=raw,
-                           using_default=using_default, ini_path=INI_PATH)
+                           using_default=using_default, ini_path=INI_PATH,
+                           game_port=game_port(), rcon_port=rcon_port())
 
 
 @app.route("/config/save", methods=["POST"])
@@ -1056,8 +1079,13 @@ def config_save():
     settings, _raw, _active, _ud = read_settings()
     new_values = {}
     for k, _old, _q, _p in settings:
+        if k in LOCKED_OPTIONS:
+            continue
         if ("opt_" + k) in request.form:
             new_values[k] = request.form.get("opt_" + k, "")
+    # Ports fest erzwingen
+    new_values["PublicPort"] = game_port()
+    new_values["RCONPort"] = rcon_port()
     write_settings(new_values)
     flash(t("config_saved"))
     return redirect(url_for("config"))
@@ -1070,6 +1098,7 @@ def config_save_raw():
         flash(t("csrf_invalid"))
         return redirect(url_for("config"))
     write_raw(request.form.get("raw", ""))
+    enforce_fixed_ports()  # feste Ports auch bei Rohdatei-Bearbeitung durchsetzen
     flash(t("raw_saved"))
     return redirect(url_for("config"))
 
