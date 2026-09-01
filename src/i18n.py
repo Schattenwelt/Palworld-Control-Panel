@@ -111,6 +111,25 @@ TRANSLATIONS = {
     # -- Mods --
     "mods_title": {"de": "Mods", "en": "Mods"},
     "pak_head": {"de": "Pak-Mods", "en": "Pak mods"},
+    "pak_what_q": {"de": "Woran erkennst du eine Pak-Mod?", "en": "How do you spot a pak mod?"},
+    "pak_what_a": {
+        "de": "Der Download enthält .pak-Dateien (oft zusätzlich .ucas/.utoc) und KEINE "
+              ".lua-Skripte. Diese Dateien lädst du hier direkt hoch. Enthält der Download "
+              "stattdessen einen Ordner mit Scripts/ und .lua-Dateien, gehört er unten zu "
+              "den UE4SS-Lua-Mods.",
+        "en": "The download contains .pak files (often also .ucas/.utoc) and NO .lua scripts. "
+              "You upload those files here directly. If the download instead has a folder "
+              "with Scripts/ and .lua files, it belongs below under UE4SS Lua mods."},
+    "ue4ss_what_q": {"de": "Woran erkennst du eine Lua-Mod?", "en": "How do you spot a Lua mod?"},
+    "ue4ss_what_a": {
+        "de": "Der Download ist ein .zip mit einem Ordner, der Scripts/ und .lua-Dateien "
+              "(oft enabled.txt) enthält – KEINE .pak. Auf CurseForge steht es in der "
+              "Kategorie „Lua Code Mods\" bzw. „benötigt UE4SS\". Dieses .zip lädst du hier "
+              "hoch. Enthält der Download nur .pak-Dateien, gehört er oben zu den Pak-Mods.",
+        "en": "The download is a .zip with a folder containing Scripts/ and .lua files "
+              "(often enabled.txt) – NO .pak. On CurseForge it's in the \"Lua Code Mods\" "
+              "category or says \"requires UE4SS\". Upload that .zip here. If the download "
+              "only has .pak files, it belongs above under Pak mods."},
     "mods_warn": {
         "de": "Nur server-kompatible Pak-Mods verwenden. Wichtig: Server-Mods müssen auf dem "
               "Server UND bei allen Spielern identisch vorhanden sein, sonst schlägt der "
