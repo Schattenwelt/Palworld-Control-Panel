@@ -48,7 +48,7 @@ app = Flask(__name__)
 app.secret_key = CONF["secret_key"]
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024  # 1 GiB Upload-Limit für Mods
 
-PANEL_VERSION = "1.4.0"
+PANEL_VERSION = "1.4.1"
 
 # ---------------------------------------------------------------------------
 # Benutzer-Store (users.json) – alle Konten sind gleichberechtigt

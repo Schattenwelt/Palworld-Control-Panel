@@ -2,25 +2,19 @@
 {% block title %}{{ t('mods_title') }} · Palworld Panel{% endblock %}
 {% block content %}
 
-<div class="notice">{{ t('mods_warn') }}</div>
-
 <section class="panel">
-  <div class="panel-head"><h2>{{ t('mods_upload_label') }}</h2></div>
+  <div class="panel-head">
+    <h2>{{ t('pak_head') }} <span class="pill">{{ mods|length }}</span></h2>
+  </div>
+  <div class="notice">{{ t('mods_warn') }}</div>
+  <p class="muted small">{{ t('mods_upload_label') }}</p>
   <form method="post" action="{{ url_for('mods_upload') }}" enctype="multipart/form-data" class="user-add">
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">
     <input type="file" name="modfiles" accept=".pak,.ucas,.utoc" multiple required>
     <button class="btn primary" type="submit">{{ t('mods_upload_btn') }}</button>
   </form>
   <p class="muted small">{{ t('mods_restart_hint') }} <span class="mono">{{ mods_path }}</span></p>
-</section>
-
-<section class="panel">
-  <div class="panel-head">
-    <h2>{{ t('mods_title') }} <span class="pill">{{ mods|length }}</span></h2>
-  </div>
-  {% if not mods %}
-    <p class="muted">{{ t('mods_none') }}</p>
-  {% else %}
+  {% if mods %}
   <ul class="users">
     {% for m in mods %}
     <li>
@@ -47,6 +41,8 @@
     </li>
     {% endfor %}
   </ul>
+  {% else %}
+  <p class="muted">{{ t('mods_none') }}</p>
   {% endif %}
 </section>
 
@@ -57,10 +53,11 @@
     {% else %}<span class="addr-kind local">{{ t('ue4ss_ready_no') }}</span>{% endif %}
   </div>
   <div class="notice">{{ t('ue4ss_warn') }}</div>
+  <p class="muted small">{{ t('ue4ss_upload_label') }}</p>
   <form method="post" action="{{ url_for('ue4ss_upload') }}" enctype="multipart/form-data" class="user-add">
     <input type="hidden" name="csrf" value="{{ csrf_token() }}">
     <input type="file" name="modzip" accept=".zip" required>
-    <button class="btn primary" type="submit">{{ t('ue4ss_upload_label') }}</button>
+    <button class="btn primary" type="submit">{{ t('mods_upload_btn') }}</button>
   </form>
   <p class="muted small">{{ t('mods_restart_hint') }} <span class="mono">{{ ue4ss_path }}</span></p>
   {% if ue4ss_mods %}

@@ -110,6 +110,7 @@ TRANSLATIONS = {
         "en": "Palworld cannot list bans via RCON – the list comes from banlist.txt."},
     # -- Mods --
     "mods_title": {"de": "Mods", "en": "Mods"},
+    "pak_head": {"de": "Pak-Mods", "en": "Pak mods"},
     "mods_warn": {
         "de": "Nur server-kompatible Pak-Mods verwenden. Wichtig: Server-Mods müssen auf dem "
               "Server UND bei allen Spielern identisch vorhanden sein, sonst schlägt der "
