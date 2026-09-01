@@ -49,4 +49,48 @@
   </ul>
   {% endif %}
 </section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>{{ t('ue4ss_head') }} <span class="pill">{{ ue4ss_mods|length }}</span></h2>
+    {% if ue4ss_ready %}<span class="addr-kind auto">{{ t('ue4ss_ready_yes') }}</span>
+    {% else %}<span class="addr-kind local">{{ t('ue4ss_ready_no') }}</span>{% endif %}
+  </div>
+  <div class="notice">{{ t('ue4ss_warn') }}</div>
+  <form method="post" action="{{ url_for('ue4ss_upload') }}" enctype="multipart/form-data" class="user-add">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="file" name="modzip" accept=".zip" required>
+    <button class="btn primary" type="submit">{{ t('ue4ss_upload_label') }}</button>
+  </form>
+  <p class="muted small">{{ t('mods_restart_hint') }} <span class="mono">{{ ue4ss_path }}</span></p>
+  {% if ue4ss_mods %}
+  <ul class="users">
+    {% for m in ue4ss_mods %}
+    <li>
+      <div class="player-info">
+        <span class="pname mono">{{ m.name }}</span>
+        {% if m.enabled %}<span class="addr-kind auto">{{ t('mods_active') }}</span>
+        {% else %}<span class="addr-kind">{{ t('mods_inactive') }}</span>{% endif %}
+      </div>
+      <div class="player-actions">
+        <form method="post" action="{{ url_for('ue4ss_toggle') }}" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <input type="hidden" name="name" value="{{ m.name }}">
+          <input type="hidden" name="enable" value="{{ '0' if m.enabled else '1' }}">
+          <button class="btn" type="submit">{{ t('mod_disable') if m.enabled else t('mod_enable') }}</button>
+        </form>
+        <form method="post" action="{{ url_for('ue4ss_delete') }}" class="inline"
+              onsubmit="return confirm('{{ t('mod_confirm_delete', name=m.name) }}');">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <input type="hidden" name="name" value="{{ m.name }}">
+          <button class="btn danger" type="submit">{{ t('mod_delete') }}</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">{{ t('ue4ss_none') }}</p>
+  {% endif %}
+</section>
 {% endblock %}

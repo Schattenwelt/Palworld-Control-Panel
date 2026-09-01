@@ -139,6 +139,28 @@ TRANSLATIONS = {
     "mod_disabled": {"de": "Mod '{name}' deaktiviert.", "en": "Mod '{name}' disabled."},
     "mod_deleted": {"de": "Mod '{name}' gelöscht.", "en": "Mod '{name}' deleted."},
     "mod_not_found": {"de": "Mod nicht gefunden.", "en": "Mod not found."},
+    # -- UE4SS-Lua-Mods --
+    "ue4ss_head": {"de": "UE4SS-Lua-Mods", "en": "UE4SS Lua mods"},
+    "ue4ss_warn": {
+        "de": "Für Skript-Mods (z. B. Admin Commands) muss die UE4SS-Runtime auf dem Server "
+              "installiert sein – das ist ein einmaliger, manueller Schritt (nativer "
+              "Linux-UE4SS-Build). Diese Mods sind server-seitig: Clients brauchen nichts, "
+              "Crossplay bleibt erhalten. Befehle werden im Spiel-Chat genutzt (z. B. !help).",
+        "en": "Script mods (e.g. Admin Commands) require the UE4SS runtime installed on the "
+              "server – a one-time manual step (native Linux UE4SS build). These mods are "
+              "server-side: clients need nothing, crossplay stays intact. Commands are used "
+              "in the in-game chat (e.g. !help)."},
+    "ue4ss_ready_yes": {"de": "UE4SS erkannt", "en": "UE4SS detected"},
+    "ue4ss_ready_no": {"de": "UE4SS nicht erkannt", "en": "UE4SS not detected"},
+    "ue4ss_upload_label": {"de": "Lua-Mod (.zip) hochladen", "en": "Upload Lua mod (.zip)"},
+    "ue4ss_none": {"de": "Keine Lua-Mods installiert.", "en": "No Lua mods installed."},
+    "ue4ss_need_zip": {"de": "Bitte eine .zip-Datei auswählen.", "en": "Please select a .zip file."},
+    "ue4ss_bad_zip": {"de": "Kein gültiger UE4SS-Mod-Ordner im Archiv gefunden "
+                            "(erwartet Scripts/ bzw. enabled.txt).",
+                      "en": "No valid UE4SS mod folder found in the archive "
+                            "(expects Scripts/ or enabled.txt)."},
+    "ue4ss_uploaded": {"de": "Lua-Mod(s) installiert und aktiviert: {names}.",
+                       "en": "Lua mod(s) installed and enabled: {names}."},
     # -- Speicherstand (Export/Import) --
     "save_title": {"de": "Speicherstand", "en": "Save game"},
     "save_export_head": {"de": "Eigenen Speicherstand herunterladen", "en": "Download your save game"},

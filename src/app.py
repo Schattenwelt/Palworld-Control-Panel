@@ -48,7 +48,7 @@ app = Flask(__name__)
 app.secret_key = CONF["secret_key"]
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024  # 1 GiB Upload-Limit für Mods
 
-PANEL_VERSION = "1.3.0"
+PANEL_VERSION = "1.4.0"
 
 # ---------------------------------------------------------------------------
 # Benutzer-Store (users.json) – alle Konten sind gleichberechtigt
@@ -448,6 +448,128 @@ def delete_mod(stem):
         except OSError:
             pass
     return removed
+
+
+# ---------------------------------------------------------------------------
+# UE4SS-Lua-Mods (Mods-Ordner + mods.txt) – Upload / Aktivieren / Löschen
+# ---------------------------------------------------------------------------
+def ue4ss_mods_dir():
+    """UE4SS-Mods-Ordner. Aus panel.json (ue4ss_mods_dir) oder Auto-Erkennung."""
+    p = CONF.get("ue4ss_mods_dir")
+    if p:
+        return p
+    for cand in ("Pal/Binaries/Linux/Mods", "Mods", "Pal/Binaries/Win64/ue4ss/Mods"):
+        full = os.path.join(PALSERVER_DIR, cand)
+        if os.path.isdir(full):
+            return full
+    return os.path.join(PALSERVER_DIR, "Pal/Binaries/Linux/Mods")
+
+
+def ue4ss_installed():
+    """Heuristik: liegt eine UE4SS-Runtime vor?"""
+    checks = [
+        os.path.join(PALSERVER_DIR, "Pal/Binaries/Linux/libUE4SS.so"),
+        os.path.join(PALSERVER_DIR, "Pal/Binaries/Win64/ue4ss"),
+        os.path.join(PALSERVER_DIR, "Pal/Binaries/Win64/dwmapi.dll"),
+        os.path.join(PALSERVER_DIR, "libUE4SS.so"),
+    ]
+    return any(os.path.exists(c) for c in checks) or os.path.isdir(ue4ss_mods_dir())
+
+
+def _modstxt_path():
+    return os.path.join(ue4ss_mods_dir(), "mods.txt")
+
+
+def read_modstxt():
+    states = {}
+    p = _modstxt_path()
+    if os.path.isfile(p):
+        for line in _read_text(p).splitlines():
+            s = line.strip()
+            if not s or s.startswith(";") or ":" not in s:
+                continue
+            name, _, val = s.partition(":")
+            states[name.strip()] = val.strip().startswith("1")
+    return states
+
+
+def set_modstxt_enabled(name, enabled):
+    """Setzt/ergänzt den mods.txt-Eintrag, erhält übrige Zeilen (z. B. UE4SS-interne Mods)."""
+    p = _modstxt_path()
+    lines = _read_text(p).splitlines() if os.path.isfile(p) else []
+    out, found = [], False
+    for line in lines:
+        s = line.strip()
+        if s and ":" in s and not s.startswith(";") and s.split(":", 1)[0].strip() == name:
+            out.append("%s : %d" % (name, 1 if enabled else 0))
+            found = True
+        else:
+            out.append(line)
+    if not found:
+        out.append("%s : %d" % (name, 1 if enabled else 0))
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        f.write("\n".join(out) + "\n")
+
+
+def _is_ue4ss_mod_dir(full):
+    return os.path.isdir(full) and (
+        os.path.isdir(os.path.join(full, "Scripts"))
+        or os.path.isdir(os.path.join(full, "scripts"))
+        or os.path.isdir(os.path.join(full, "dlls"))
+        or os.path.isfile(os.path.join(full, "enabled.txt"))
+        or os.path.isfile(os.path.join(full, "enabled.txt.disabled"))
+    )
+
+
+def list_ue4ss_mods():
+    d = ue4ss_mods_dir()
+    states = read_modstxt()
+    out = []
+    if os.path.isdir(d):
+        for name in sorted(os.listdir(d)):
+            full = os.path.join(d, name)
+            if not _is_ue4ss_mod_dir(full):
+                continue
+            has_enabled = os.path.isfile(os.path.join(full, "enabled.txt"))
+            enabled = states.get(name)
+            if enabled is None:
+                enabled = has_enabled
+            out.append({"name": name, "enabled": bool(enabled)})
+    return out
+
+
+def toggle_ue4ss_mod(name, enable):
+    folder = os.path.join(ue4ss_mods_dir(), name)
+    if not os.path.isdir(folder):
+        return False
+    set_modstxt_enabled(name, enable)
+    et = os.path.join(folder, "enabled.txt")
+    etoff = et + ".disabled"
+    try:
+        if enable and os.path.isfile(etoff) and not os.path.isfile(et):
+            os.rename(etoff, et)
+        elif not enable and os.path.isfile(et):
+            os.rename(et, etoff)
+    except OSError:
+        pass
+    return True
+
+
+def delete_ue4ss_mod(name):
+    folder = os.path.join(ue4ss_mods_dir(), name)
+    if not os.path.isdir(folder):
+        return False
+    shutil.rmtree(folder, ignore_errors=True)
+    # aus mods.txt entfernen
+    p = _modstxt_path()
+    if os.path.isfile(p):
+        lines = _read_text(p).splitlines()
+        keep = [l for l in lines
+                if not (":" in l and l.strip().split(":", 1)[0].strip() == name)]
+        with open(p, "w", encoding="utf-8") as f:
+            f.write("\n".join(keep) + ("\n" if keep else ""))
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -866,7 +988,88 @@ def bans_unban():
 @app.route("/mods")
 @login_required
 def mods_page():
-    return render_template("mods.html", mods=list_mods(), mods_path=mods_dir())
+    return render_template("mods.html", mods=list_mods(), mods_path=mods_dir(),
+                           ue4ss_mods=list_ue4ss_mods(), ue4ss_path=ue4ss_mods_dir(),
+                           ue4ss_ready=ue4ss_installed())
+
+
+@app.route("/mods/ue4ss/upload", methods=["POST"])
+@login_required
+def ue4ss_upload():
+    if not check_csrf():
+        flash(t("csrf_invalid"))
+        return redirect(url_for("mods_page"))
+    f = request.files.get("modzip")
+    if not f or not f.filename or not f.filename.lower().endswith(".zip"):
+        flash(t("ue4ss_need_zip"))
+        return redirect(url_for("mods_page"))
+    dest = ue4ss_mods_dir()
+    os.makedirs(dest, exist_ok=True)
+    tmpdir = tempfile.mkdtemp()
+    try:
+        zpath = os.path.join(tmpdir, "m.zip")
+        f.save(zpath)
+        try:
+            with zipfile.ZipFile(zpath) as z:
+                for n in z.namelist():
+                    if n.startswith("/") or ".." in n.replace("\\", "/").split("/"):
+                        flash(t("ue4ss_bad_zip"))
+                        return redirect(url_for("mods_page"))
+                z.extractall(os.path.join(tmpdir, "x"))
+        except zipfile.BadZipFile:
+            flash(t("ue4ss_bad_zip"))
+            return redirect(url_for("mods_page"))
+        # Mod-Ordner im Archiv finden (Ordner mit Scripts/scripts/dlls/enabled.txt)
+        found = []
+        for root, dirs, _files in os.walk(os.path.join(tmpdir, "x")):
+            for dname in list(dirs):
+                full = os.path.join(root, dname)
+                if _is_ue4ss_mod_dir(full):
+                    found.append(full)
+                    dirs.remove(dname)  # nicht weiter absteigen
+        if not found:
+            flash(t("ue4ss_bad_zip"))
+            return redirect(url_for("mods_page"))
+        for src in found:
+            name = os.path.basename(src)
+            target = os.path.join(dest, name)
+            if os.path.exists(target):
+                shutil.rmtree(target, ignore_errors=True)
+            shutil.copytree(src, target)
+            set_modstxt_enabled(name, True)
+        flash(t("ue4ss_uploaded", names=", ".join(os.path.basename(s) for s in found)))
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+    return redirect(url_for("mods_page"))
+
+
+@app.route("/mods/ue4ss/toggle", methods=["POST"])
+@login_required
+def ue4ss_toggle():
+    if not check_csrf():
+        flash(t("csrf_invalid"))
+        return redirect(url_for("mods_page"))
+    name = request.form.get("name", "")
+    enable = request.form.get("enable") == "1"
+    if name in {m["name"] for m in list_ue4ss_mods()} and toggle_ue4ss_mod(name, enable):
+        flash(t("mod_enabled" if enable else "mod_disabled", name=name))
+    else:
+        flash(t("mod_not_found"))
+    return redirect(url_for("mods_page"))
+
+
+@app.route("/mods/ue4ss/delete", methods=["POST"])
+@login_required
+def ue4ss_delete():
+    if not check_csrf():
+        flash(t("csrf_invalid"))
+        return redirect(url_for("mods_page"))
+    name = request.form.get("name", "")
+    if name in {m["name"] for m in list_ue4ss_mods()} and delete_ue4ss_mod(name):
+        flash(t("mod_deleted", name=name))
+    else:
+        flash(t("mod_not_found"))
+    return redirect(url_for("mods_page"))
 
 
 @app.route("/mods/upload", methods=["POST"])

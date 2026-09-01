@@ -25,6 +25,7 @@ The interface is available in **German and English** (switchable in the top bar)
 - **Live resources**: CPU / RAM / disk usage on the dashboard
 - **Update check**: shows the installed build/version and whether a newer build exists
 - **Save game export/import**: download the active world as a ZIP, or import a world from another server (backs up first, sets `DedicatedServerName`; server must be stopped)
+- **UE4SS Lua-mod manager**: upload/enable/disable/delete script mods (e.g. Admin Commands) in the UE4SS `Mods` folder via `mods.txt`; server-side, keeps crossplay (UE4SS runtime install is a manual one-time step)
 - **Pak-mod manager**: upload `.pak`/`.ucas`/`.utoc` server mods into `~mods/`, enable/disable/delete them (server-side pak mods only; clients must match, breaks crossplay)
 - **Multiple user accounts**: add / reset / delete users in the UI; each user can change
   their own password. All accounts are equal.
